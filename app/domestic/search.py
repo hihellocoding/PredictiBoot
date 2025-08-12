@@ -36,4 +36,4 @@ def find_stock_code(query: str) -> list:
 if __name__ == '__main__':
     # 검색 기능 테스트
     search_results = find_stock_code('삼성')
-    print(search_results)
+    # print(search_results)

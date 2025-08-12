@@ -35,9 +35,12 @@ async def get_domestic_stock_news(
     """
     Get the latest news for a given stock code.
     """
-    news = get_stock_news(code, limit)
-    # 뉴스가 없더라도 에러를 발생시키지 않고, 빈 리스트를 포함한 정상 응답을 반환합니다.
-    return {"news": news}
+    news_result = get_stock_news(code, limit)
+    
+    if isinstance(news_result, dict) and "error" in news_result:
+        raise HTTPException(status_code=500, detail=news_result["error"])
+    
+    return {"news": news_result}
 
 @router.get("/domestic/predict", response_model=dict)
 async def predict_domestic_stock(
