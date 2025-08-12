@@ -75,6 +75,9 @@ statsmodels
 pytz
 pykrx
 streamlit
+selenium
+openai
+yfinance
 ```
 
 ---
