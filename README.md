@@ -76,3 +76,18 @@ pytz
 pykrx
 streamlit
 ```
+
+---
+
+## ⚖️ License
+
+This software is provided under a custom, restrictive license.
+
+Copyright (c) 2025 박규태 (gocyzhod@gmail.com)
+All rights reserved.
+
+본 소프트웨어와 그 소스코드는 제작자의 사전 서면 동의 없이 복제, 수정, 배포할 수 없습니다.
+무단 사용 시 저작권법 및 관련 법률에 따라 민·형사상 책임을 물을 수 있습니다.
+
+
+For more details, please refer to the `LICENSE` file in the repository root.
