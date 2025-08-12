@@ -1,0 +1,2 @@
+.venv/* linguist-vendored
+**/__pycache__/* linguist-generated
