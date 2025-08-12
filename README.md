@@ -18,15 +18,16 @@
 
 ## ⚙️ 기술 스택 및 주요 라이브러리
 
-*   **Python** 3.12.2
-*   **FastAPI**: Modern, fast (high-performance), web framework for building APIs.
-*   **Uvicorn**: Lightning-fast ASGI server.
-*   **Streamlit**: The fastest way to build and share data apps.
-*   **Pandas**: Powerful data structures for data analysis, time series, and statistics.
-*   **pykrx**: KRX (Korea Exchange) stock market data scraper.
-*   **Statsmodels**: Statistical computation and modeling.
-*   **BeautifulSoup4**: For pulling data out of HTML and XML files.
-*   **Requests**: Simple, yet elegant, HTTP library.
+* **Python** 3.12.2
+* **FastAPI**: 빠르고 현대적인 API 개발용 웹 프레임워크
+* **Uvicorn**: 고성능 ASGI 서버, FastAPI와 궁합이 뛰어남
+* **Streamlit**: 데이터 기반 앱을 쉽고 빠르게 제작·공유
+* **Pandas**: 데이터 분석, 시계열 처리, 통계 연산에 강력
+* **pykrx**: 한국거래소(KRX) 주식 데이터 수집
+* **Statsmodels**: 통계 분석과 모델링 도구
+* **BeautifulSoup4**: HTML·XML 데이터 파싱
+* **Requests**: 간단하고 강력한 HTTP 요청 라이브러리
+
 
 ---
 
