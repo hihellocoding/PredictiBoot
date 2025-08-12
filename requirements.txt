@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+requests
+beautifulsoup4
+pandas
+lxml
+statsmodels
+pytz
+pykrx
+streamlit
