@@ -6,7 +6,7 @@
 
 ## ⚙️ 기술 스택 및 주요 라이브러리
 
-*   **Python** (TODO: 파이썬 버전을 입력해주세요. 예: 3.11)
+*   **Python** 3.12.2
 *   **FastAPI**: Modern, fast (high-performance), web framework for building APIs.
 *   **Uvicorn**: Lightning-fast ASGI server.
 *   **Streamlit**: The fastest way to build and share data apps.
@@ -22,7 +22,7 @@
 
 ### 1. 저장소 복제 및 디렉토리 이동
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/hihellocoding/PredictiBoot.git
 cd PredictiBoot
 ```
 
@@ -42,7 +42,11 @@ pip install -r requirements.txt
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-*   `--reload` 옵션은 코드 변경 시 서버를 자동으로 재시작해주는 개발용 옵션입니다.
+
+### 5. Streamlit 앱 실행
+```bash
+streamlit run app/streamlit/ui.py
+```
 
 ---
 
