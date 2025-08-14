@@ -40,7 +40,7 @@ def analyze_prediction_with_llm(api_key: str, stock_name: str, prediction_messag
 
     # 뉴스 기사들을 하나의 문자열로 조합
     news_summary = "\n".join([
-        f"- 제목: {article['title']}\n  출처: {article['source']}\n  날짜: {article['date']}"
+        f"- 제목: {article['title']}\n  출처: {article['source']}\n  날짜: {article['date']}\n  내용: {article.get('content', '내용 없음')[:500]}..."
         for article in news_articles
     ])
 
@@ -62,12 +62,13 @@ def analyze_prediction_with_llm(api_key: str, stock_name: str, prediction_messag
     {news_summary}
 
     **분석 요청:**
-    이 정보를 바탕으로, 예측 프로그램의 결과가 다음 거래일에 실현될 가능성에 대해 어떻게 생각하십니까? 특히 예측된 종가({predicted_price_value})가 현재 뉴스 상황을 고려했을 때 합리적인 가격인지 평가해주세요. 아래 형식에 맞춰 답변해주세요.
+    이 정보를 바탕으로, 예측 프로그램의 결과가 다음 거래일에 실현될 가능성에 대해 어떻게 생각하십니까? 특히 예측된 종가({predicted_price_value})가 현재 뉴스 상황을 고려했을 때 합리적인 가격인지 평가해주세요. 아래 5가지 항목에 맞춰 답변을 상세하게 작성해주세요.
 
     1.  **예측 실현 확률:** 예측 결과가 맞을 확률을 퍼센트(%)로 제시해주세요.
     2.  **긍정적 의견:** 주가에 긍정적인 영향을 줄 수 있는 뉴스는 무엇이며, 왜 그렇게 생각하는지 요약해주세요.
     3.  **부정적 의견:** 주가에 부정적인 영향을 줄 수 있는 뉴스는 무엇이며, 왜 그렇게 생각하는지 요약해주세요.
     4.  **최종 결론:** 위 내용을 종합하여 당신의 최종 의견을 말해주세요.
+    5.  **예측가 대비 추가 전망 (필수):** 예측된 종가({predicted_price_value})보다 실제 주가가 더 상승할 것으로 예상하십니까, 아니면 하락할 것으로 예상하십니까? 뉴스나 시장 흐름을 고려하여 그 이유를 간략하게 설명해주세요. 이 항목은 반드시 포함되어야 합니다.
     """
 
     print("--- LLM Analyzer: Prompt constructed (via print) ---")
@@ -106,6 +107,7 @@ def analyze_prediction_with_llm(api_key: str, stock_name: str, prediction_messag
         logger.error(f"--- LLM Analyzer: Error - API Status Error ({e.status_code}): {e.response} (via logger) ---")
         return f"OpenAI API 에러가 발생했습니다 (상태 코드: {e.status_code}): {e.response}"
     except Exception as e:
-        print(f"--- LLM Analyzer: Error - Unexpected Error: {e} (via print) ---")
-        logger.error(f"--- LLM Analyzer: Error - Unexpected Error: {e} (via logger) ---")
-        return f"예상치 못한 오류가 발생했습니다: {e}"
+        safe_error_message = str(e).encode('ascii', 'replace').decode('ascii')
+        print(f"--- LLM Analyzer: Error - Unexpected Error: {safe_error_message} (via print) ---")
+        logger.error(f"--- LLM Analyzer: Error - Unexpected Error: {safe_error_message} (via logger) ---")
+        return f"예상치 못한 오류가 발생했습니다: {safe_error_message}"

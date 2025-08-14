@@ -10,3 +10,6 @@ pykrx
 streamlit
 selenium
 openai
+yfinance
+scikit-learn
+tensorflow

@@ -58,24 +58,26 @@ async def predict_domestic_stock(
         raise HTTPException(status_code=404, detail="Could not retrieve historical data.")
 
     try:
-        # 2. Predict the next day's price
-        predicted_price = predict_next_day_price(historical_data)
-
-        # 3. Determine the correct prediction date based on KST
+        # Get today's date in KST to filter it out
         kst = pytz.timezone('Asia/Seoul')
         now_kst = datetime.datetime.now(kst)
+        today_str = now_kst.strftime('%Y.%m.%d')
 
-        last_crawled_date_str = historical_data[0]['date']
-        last_crawled_date = datetime.datetime.strptime(last_crawled_date_str, '%Y.%m.%d')
+        # Filter out today's data, ensuring we only use data up to yesterday
+        historical_data_until_yesterday = [d for d in historical_data if d.get('date') != today_str]
 
-        prediction_target_date = last_crawled_date
-        # Check if the latest data is from today and market is not closed yet
-        if last_crawled_date.date() == now_kst.date() and now_kst.hour < 16:
-            # Predict for today, as today's data is not final
-            prediction_target_date = last_crawled_date
-        else:
-            # Predict for the next day, as today's data is final or latest data is from yesterday
-            prediction_target_date = last_crawled_date + datetime.timedelta(days=1)
+        if not historical_data_until_yesterday:
+            raise HTTPException(status_code=404, detail="Not enough historical data available (excluding today).")
+
+        # 2. Predict the next day's price using data up to yesterday
+        predicted_price = predict_next_day_price(historical_data_until_yesterday)
+
+        # 3. The prediction target is the next business day after the last available data point.
+        # Since we filtered for data *before* today, this will be today or the next business day.
+        last_data_date_str = historical_data_until_yesterday[0]['date']
+        last_data_date = datetime.datetime.strptime(last_data_date_str, '%Y.%m.%d')
+
+        prediction_target_date = last_data_date + datetime.timedelta(days=1)
 
         # Find the next business day (handles weekends)
         while prediction_target_date.weekday() >= 5: # 5: Saturday, 6: Sunday

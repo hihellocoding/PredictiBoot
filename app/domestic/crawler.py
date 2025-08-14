@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+import datetime # Added for date filtering
 
 def get_stock_name(code: str) -> str:
     # ... (This function remains unchanged) ...
@@ -67,6 +68,7 @@ def get_historical_data(code: str, years: int = 1):
 def get_stock_news(code: str, limit: int = 5):
     """
     네이버 금융에서 최신 종목 뉴스를 크롤링합니다. (Selenium과 Iframe 핸들링 사용)
+    이제 기사 본문도 함께 수집합니다.
     """
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
@@ -80,12 +82,10 @@ def get_stock_news(code: str, limit: int = 5):
         url = f"https://finance.naver.com/item/news.naver?code={code}"
         driver.get(url)
 
-        # CORRECTED: Wait for the iframe with ID 'news_frame' and switch to it.
         WebDriverWait(driver, 15).until(
             EC.frame_to_be_available_and_switch_to_it((By.ID, "news_frame"))
         )
 
-        # Now that we are in the frame, wait for the table to be present.
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CLASS_NAME, 'type5'))
         )
@@ -97,6 +97,8 @@ def get_stock_news(code: str, limit: int = 5):
             return {"error": "Switched to iframe, but still could not find the news table."}
 
         news_list = []
+        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'}
+
         for row in news_table.find_all('tr'):
             if len(news_list) >= limit:
                 break
@@ -107,7 +109,7 @@ def get_stock_news(code: str, limit: int = 5):
 
             if title_tag and info_tag and date_tag:
                 title = title_tag.text.strip()
-                if not title: # Skip empty titles that sometimes appear
+                if not title:
                     continue
                 
                 link = title_tag['href']
@@ -116,11 +118,33 @@ def get_stock_news(code: str, limit: int = 5):
                 
                 source = info_tag.text.strip()
                 date = date_tag.text.strip()
-                news_list.append({"title": title, "link": link, "source": source, "date": date})
+                
+                # --- 기사 본문 수집 로직 추가 ---
+                content = "본문 수집에 실패했습니다."
+                try:
+                    article_response = requests.get(link, headers=headers, timeout=5)
+                    article_response.raise_for_status()
+                    article_soup = BeautifulSoup(article_response.text, 'lxml')
+                    
+                    # 네이버 금융 뉴스 본문 선택자 (실제 구조에 따라 변경될 수 있음)
+                    content_tag = article_soup.find('div', id='newsct_article')
+                    if content_tag:
+                        content = content_tag.get_text(strip=True, separator='\n')
+                    else:
+                        # 다른 가능한 선택자 시도
+                        content_tag = article_soup.find('div', id='articeBody')
+                        if content_tag:
+                            content = content_tag.get_text(strip=True, separator='\n')
+
+                except Exception as e:
+                    content = f"본문 수집 중 오류 발생: {e}"
+                # ---------------------------------
+
+                news_list.append({"title": title, "link": link, "source": source, "date": date, "content": content})
         
         if not news_list:
             return {"error": "News table was found, but no articles could be parsed."}
-        print(news_list)
+        
         return news_list
 
     except TimeoutException:
