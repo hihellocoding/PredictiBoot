@@ -1,21 +1,33 @@
 # PredictiBoot
 
-> 1~3년 주식 고가 종가 등의 데이터를 기반으로 예측 알고리즘을 통해 현재일 기준으로 종가를 예측하는 프로그램.
-> 또한, 기사 스크랩을 통해 LLM 에 기사와 예측가를 던짐으로써 인공지능의 판단까지 더한다.
+> 이 프로그램은 과거 1~3년간의 주가 데이터(고가·종가 등) 를 분석하여, 예측 알고리즘을 통해 현재 시점의 종가를 산출합니다.
+뿐만 아니라, 최신 뉴스 기사를 자동 수집하여 대규모 언어 모델(LLM)에 예측 가격과 함께 제공함으로써,
+인공지능의 종합적인 판단과 해석을 더해 보다 신뢰도 높은 예측 결과를 제공합니다.
+
+주요 기능
+
+📊 데이터 기반 예측: 과거 주가 데이터를 분석하여 미래 종가를 계산
+
+📰 뉴스 분석 통합: 관련 최신 뉴스 기사 자동 수집
+
+🤖 AI 분석 지원: LLM을 활용한 종합 평가 및 의견 제시
+
+💡 의사결정 보조: 데이터와 AI 판단을 결합한 투자 참고 정보 제공
 
 ---
 
 ## ⚙️ 기술 스택 및 주요 라이브러리
 
-*   **Python** 3.12.2
-*   **FastAPI**: Modern, fast (high-performance), web framework for building APIs.
-*   **Uvicorn**: Lightning-fast ASGI server.
-*   **Streamlit**: The fastest way to build and share data apps.
-*   **Pandas**: Powerful data structures for data analysis, time series, and statistics.
-*   **pykrx**: KRX (Korea Exchange) stock market data scraper.
-*   **Statsmodels**: Statistical computation and modeling.
-*   **BeautifulSoup4**: For pulling data out of HTML and XML files.
-*   **Requests**: Simple, yet elegant, HTTP library.
+* **Python** 3.12.2
+* **FastAPI**: 빠르고 현대적인 API 개발용 웹 프레임워크
+* **Uvicorn**: 고성능 ASGI 서버, FastAPI와 궁합이 뛰어남
+* **Streamlit**: 데이터 기반 앱을 쉽고 빠르게 제작·공유
+* **Pandas**: 데이터 분석, 시계열 처리, 통계 연산에 강력
+* **pykrx**: 한국거래소(KRX) 주식 데이터 수집
+* **Statsmodels**: 통계 분석과 모델링 도구
+* **BeautifulSoup4**: HTML·XML 데이터 파싱
+* **Requests**: 간단하고 강력한 HTTP 요청 라이브러리
+
 
 ---
 
