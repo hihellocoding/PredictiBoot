@@ -169,29 +169,7 @@ if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.sessio
                     intraday_response.raise_for_status()
                     intraday_raw_data = intraday_response.json().get('intraday_data', [])
                     
-                    # Always go to else block for now to show "개발 대기중"
-                    # if intraday_raw_data:
-                    #     intraday_data_df = pd.DataFrame(intraday_raw_data)
-                    #     intraday_data_df['time'] = pd.to_datetime(intraday_data_df['time'], format='%H:%M').dt.time # Convert to time object
-                    #     intraday_data_df.set_index('time', inplace=True)
-                        
-                    #     # 예측 가격을 차트에 표시하기 위한 데이터 준비
-                    #     # '오늘 종가'와 '예측 종가'를 함께 표시
-                    #     plot_df = pd.DataFrame(index=intraday_data_df.index)
-                    #     plot_df['오늘 종가'] = intraday_data_df['closing_price']
-                        
-                    #     # 예측 가격을 마지막 시간대에만 표시
-                    #     if predicted_price_value != "N/A":
-                    #         # Create a series for predicted price, with NaN for all but the last index
-                    #         predicted_series = pd.Series(np.nan, index=plot_df.index)
-                    #         predicted_series.iloc[-1] = predicted_price_value
-                    #         plot_df['예측 종가'] = predicted_series
-                        
-                    #     # Streamlit 차트 표시
-                    #     with col1: # Display chart in col1
-                    #         st.subheader(f"📈 {stock_name} ({stock_code}) 오늘 주가 흐름")
-                    #         st.line_chart(plot_df)
-                    # else:
+                    # 분봉 차트 기능은 현재 개발 대기중입니다.
                     with col1:
                         st.warning("분봉 차트 기능은 현재 개발 대기중입니다. (데이터 가져오기 문제)")
                 # --- 차트 데이터 가져오기 끝 ---
