@@ -13,3 +13,4 @@ openai
 yfinance
 scikit-learn
 tensorflow
+xgboost

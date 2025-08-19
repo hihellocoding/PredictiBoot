@@ -4,6 +4,8 @@ import pandas as pd
 import re
 import sys
 import os
+import datetime # Added for date handling
+import numpy as np # Added for np.nan
 
 # 프로젝트 루트 디렉토리를 Python 경로에 추가
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -104,11 +106,11 @@ else:
 # 데이터 기간 선택 옵션
 years_option = st.radio(
     "예측에 사용할 데이터 기간을 선택하세요:",
-    ('1년', '2년', '3년'),
+    ('1년', '2년', '3년', '5년'),
     horizontal=True,
     index=0
 )
-years_map = {'1년': 1, '2년': 2, '3년': 3}
+years_map = {'1년': 1, '2년': 2, '3년': 3, '5년': 5}
 years_to_fetch = years_map[years_option]
 
 if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.session_state.stock_to_analyze is None)):
@@ -142,11 +144,12 @@ if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.sessio
                 # 예측 메시지에서 가격 추출 (국내 주식에만 해당)
                 predicted_price_value = "N/A"
                 if api_path_base == "domestic":
-                    price_match = re.search(r'(\d{1,3}(?:,\d{3})*)원', prediction_message)
+                    # Updated regex to extract the single predicted price from the new message format
+                    price_match = re.search(r'예상 종가는 \*\*(\d{1,3}(?:,\d{3})*)\*\* 원', prediction_message)
                     if price_match:
                         predicted_price_value = price_match.group(1)
-                        predicted_price_value = predicted_price_value.replace('원', '').strip()
-                        predicted_price_value = predicted_price_value.replace(',', '')
+                        predicted_price_value = predicted_price_value.replace(',', '') # Remove commas for numeric conversion
+                        predicted_price_value = float(predicted_price_value) # Convert to float
 
                 # 뉴스 API 호출
                 if api_path_base == "domestic":
@@ -157,8 +160,45 @@ if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.sessio
                 else:
                     st.warning("해외 주식 뉴스 가져오기는 아직 구현되지 않았습니다.")
 
+                # --- 오늘 주가 차트 데이터 가져오기 (국내 주식만) ---
+                intraday_data_df = pd.DataFrame()
+                if api_path_base == "domestic":
+                    today_date_str = datetime.datetime.now().strftime("%Y%m%d")
+                    intraday_params = {"code": stock_code, "date": today_date_str}
+                    intraday_response = requests.get(f"{API_BASE_URL}/stocks/{api_path_base}/intraday", params=intraday_params)
+                    intraday_response.raise_for_status()
+                    intraday_raw_data = intraday_response.json().get('intraday_data', [])
+                    
+                    # Always go to else block for now to show "개발 대기중"
+                    # if intraday_raw_data:
+                    #     intraday_data_df = pd.DataFrame(intraday_raw_data)
+                    #     intraday_data_df['time'] = pd.to_datetime(intraday_data_df['time'], format='%H:%M').dt.time # Convert to time object
+                    #     intraday_data_df.set_index('time', inplace=True)
+                        
+                    #     # 예측 가격을 차트에 표시하기 위한 데이터 준비
+                    #     # '오늘 종가'와 '예측 종가'를 함께 표시
+                    #     plot_df = pd.DataFrame(index=intraday_data_df.index)
+                    #     plot_df['오늘 종가'] = intraday_data_df['closing_price']
+                        
+                    #     # 예측 가격을 마지막 시간대에만 표시
+                    #     if predicted_price_value != "N/A":
+                    #         # Create a series for predicted price, with NaN for all but the last index
+                    #         predicted_series = pd.Series(np.nan, index=plot_df.index)
+                    #         predicted_series.iloc[-1] = predicted_price_value
+                    #         plot_df['예측 종가'] = predicted_series
+                        
+                    #     # Streamlit 차트 표시
+                    #     with col1: # Display chart in col1
+                    #         st.subheader(f"📈 {stock_name} ({stock_code}) 오늘 주가 흐름")
+                    #         st.line_chart(plot_df)
+                    # else:
+                    with col1:
+                        st.warning("분봉 차트 기능은 현재 개발 대기중입니다. (데이터 가져오기 문제)")
+                # --- 차트 데이터 가져오기 끝 ---
+
             except requests.exceptions.RequestException as e:
                 st.error(f"API 요청 실패: {e}")
+                st.stop()
                 st.stop()
         
         with col1:
@@ -174,16 +214,20 @@ if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.sessio
 
         with col2:
             st.subheader("🤖 LLM 기반 종합 분석")
+            print(f"DEBUG UI: prediction_message: {prediction_message}") # ADDED FOR DEBUGGING
+            print(f"DEBUG UI: predicted_price_value: {predicted_price_value}") # ADDED FOR DEBUGGING
             with st.spinner("AI가 뉴스를 기반으로 예측을 분석하는 중입니다. 잠시만 기다려주세요..."):
                 analysis_result = analyze_prediction_with_llm(
                     api_key=openai_api_key,
                     stock_name=stock_name,
                     prediction_message=prediction_message,
-                    predicted_price_value=predicted_price_value,
+                    predicted_price_value=predicted_price_value, # Pass the numeric predicted value
                     news_articles=news_articles
                 )
+                print(f"DEBUG UI: analysis_result (before markdown): {analysis_result[:200]}...") # ADDED FOR DEBUGGING
                 try:
                     st.markdown(analysis_result.encode('utf-8').decode('utf-8'))
                 except UnicodeEncodeError as e:
                     st.error(f"분석 결과 표시 오류: {e}. 터미널 인코딩을 확인해주세요.")
                     st.markdown(analysis_result.encode('ascii', 'replace').decode('ascii')) # 대체 표시
+

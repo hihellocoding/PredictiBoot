@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
-from ..domestic.crawler import get_daily_stock_data, get_historical_data, get_stock_name, get_stock_news
-from ..domestic.predictor import predict_next_day_price
+from ..domestic.crawler import get_daily_stock_data, get_historical_data, get_stock_name, get_stock_news, get_intraday_data
+from ..domestic.predictor import predict_next_day_price_stacking_hybrid
 from ..domestic.search import find_stock_code
 import pandas as pd
 import datetime
@@ -45,9 +45,9 @@ async def get_domestic_stock_news(
 @router.get("/domestic/predict", response_model=dict)
 async def predict_domestic_stock(
     code: str = Query(..., description="Stock code to predict (e.g., '005930')"),
-    years: int = Query(1, description="Number of years of historical data to use (1, 2, or 3)")
+    years: int = Query(1, description="Number of years of historical data to use (1, 2, 3, or 5)")
 ):
-    if years not in [1, 2, 3]:
+    if years not in [1, 2, 3, 5]:
         raise HTTPException(status_code=400, detail="Years must be 1, 2, or 3.")
 
     # 1. Crawl historical data and get stock name
@@ -69,12 +69,11 @@ async def predict_domestic_stock(
         if not historical_data_until_yesterday:
             raise HTTPException(status_code=404, detail="Not enough historical data available (excluding today).")
 
-        # 2. Predict the next day's price using data up to yesterday
-        predicted_price = predict_next_day_price(historical_data_until_yesterday)
+        # 2. Predict the next day's price using the stacking hybrid model
+        predicted_price = predict_next_day_price_stacking_hybrid(historical_data_until_yesterday)
 
         # 3. The prediction target is the next business day after the last available data point.
-        # Since we filtered for data *before* today, this will be today or the next business day.
-        last_data_date_str = historical_data_until_yesterday[0]['date']
+        last_data_date_str = historical_data_until_yesterday[-1]['date'] # Changed from [0] to [-1]
         last_data_date = datetime.datetime.strptime(last_data_date_str, '%Y.%m.%d')
 
         prediction_target_date = last_data_date + datetime.timedelta(days=1)
@@ -87,12 +86,32 @@ async def predict_domestic_stock(
         formatted_date = f"{prediction_target_date.month}월 {prediction_target_date.day}일"
         formatted_price = f"{locale.format_string('%d', int(predicted_price), grouping=True)}원"
 
-        prediction_message = f"{stock_name}({code})의 {formatted_date} 예상 종가는 {formatted_price} 입니다."
+        prediction_message = f"{stock_name}({code})의 {formatted_date} 예상 종가는 **{formatted_price}** 입니다. (스태킹 하이브리드 모델)"
 
         return {"prediction_message": prediction_message}
 
     except ValueError as e:
+        print(f"DEBUG: ValueError occurred: {e}") # ADDED FOR DEBUGGING
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during prediction: {e}")
+
+
+@router.get("/domestic/intraday")
+async def get_domestic_intraday_data(
+    code: str = Query(..., description="Stock code to get intraday data for (e.g., '005930')"),
+    date: str = Query(..., description="Date for intraday data (YYYYMMDD format, e.g., '20250819')")
+):
+    """
+    Get intraday (minute-by-minute) stock data for a given stock code and date.
+    """
+    intraday_data = get_intraday_data(code, date)
+    
+    if isinstance(intraday_data, dict) and "error" in intraday_data:
+        raise HTTPException(status_code=500, detail=intraday_data["error"])
+    
+    if not intraday_data:
+        raise HTTPException(status_code=404, detail=f"No intraday data found for {code} on {date}.")
+        
+    return {"intraday_data": intraday_data}
 
