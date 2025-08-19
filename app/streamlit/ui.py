@@ -182,6 +182,36 @@ if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.sessio
         with col1:
             st.subheader("📈 자체 예측 결과")
             st.success(prediction_message)
+
+            # --- 분봉 차트 및 현재가 정보 표시 ---
+            if not intraday_data_df.empty:
+                st.subheader("📈 금일 분봉 차트")
+                st.line_chart(intraday_data_df['closing_price'])
+
+                now = datetime.datetime.now().time()
+                market_close_time = datetime.time(15, 30)
+
+                if now < market_close_time:
+                    latest_data = intraday_data_df.iloc[-1]
+                    current_price = latest_data['closing_price']
+                    total_volume = latest_data['cumulative_volume']
+                    data_time = latest_data.name.strftime('%H:%M:%S')
+                    st.metric(label=f"실시간 거래가 ({data_time})", value=f"{current_price:,.0f} 원")
+                    st.metric(label="총 거래량", value=f"{total_volume:,.0f}")
+                else:
+                    closing_data_series = intraday_data_df[intraday_data_df.index <= market_close_time]
+                    if not closing_data_series.empty:
+                        closing_data = closing_data_series.iloc[-1]
+                        closing_price = closing_data['closing_price']
+                        final_volume = closing_data['cumulative_volume']
+                        st.metric(label="15:30 종가", value=f"{closing_price:,.0f} 원")
+                        st.metric(label="최종 거래량", value=f"{final_volume:,.0f}")
+                    else:
+                        st.warning("15:30 이전 데이터가 없습니다.")
+            elif api_path_base == "domestic":
+                st.warning("금일 거래 데이터가 없습니다.")
+            # --- 분봉 차트 끝 ---
+
             st.subheader("📰 관련 최신 뉴스")
             if news_articles:
                 for news_item in news_articles:
