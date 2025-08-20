@@ -148,6 +148,15 @@ def predict_next_day_price_stacking_hybrid(historical_data: list) -> float:
     xgb_final_pred = xgb_model_final.predict(df_features[features_to_use].iloc[[-1]])[0]
 
     # 3. 학습된 메타 모델로 최종 결과 조합
-    final_prediction = meta_model.predict(np.c_[[lstm_final_pred], [xgb_final_pred]])
+    final_input_for_meta = np.c_[[lstm_final_pred], [xgb_final_pred]]
+    final_prediction = meta_model.predict(final_input_for_meta)
+
+    # --- DEBUGGING OUTPUT ---
+    print("\n--- PREDICTION DEBUGGING ---")
+    print(f"LSTM Final Prediction: {lstm_final_pred}")
+    print(f"XGBoost Final Prediction: {xgb_final_pred}")
+    print(f"Meta-Model Input: {final_input_for_meta}")
+    print(f"Final Combined Prediction: {final_prediction[0]}")
+    print("--------------------------\n")
 
     return float(final_prediction[0])
