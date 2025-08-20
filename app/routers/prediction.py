@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-from ..domestic.crawler import get_daily_stock_data, get_historical_data, get_stock_name, get_stock_news, get_intraday_data
+from ..domestic.crawler import get_historical_data, get_stock_name, get_stock_news, get_intraday_data
 from ..domestic.predictor import predict_next_day_price_stacking_hybrid
 from ..domestic.search import find_stock_code
 import pandas as pd
@@ -48,50 +48,56 @@ async def predict_domestic_stock(
     years: int = Query(1, description="Number of years of historical data to use (1, 2, 3, or 5)")
 ):
     if years not in [1, 2, 3, 5]:
-        raise HTTPException(status_code=400, detail="Years must be 1, 2, or 3.")
+        raise HTTPException(status_code=400, detail="Years must be 1, 2, 3, or 5.")
 
-    # 1. Crawl historical data and get stock name
-    historical_data = get_historical_data(code, years)
+    # 1. Get stock name and current time in KST
     stock_name = get_stock_name(code)
+    kst = pytz.timezone('Asia/Seoul')
+    now_kst = datetime.datetime.now(kst)
+    market_close_time = datetime.time(15, 30)
 
+    # 2. Fetch historical data
+    historical_data = get_historical_data(code, years)
     if not isinstance(historical_data, list) or not historical_data:
         raise HTTPException(status_code=404, detail="Could not retrieve historical data.")
 
     try:
-        # Get today's date in KST to filter it out
-        kst = pytz.timezone('Asia/Seoul')
-        now_kst = datetime.datetime.now(kst)
-        today_str = now_kst.strftime('%Y.%m.%d')
+        # 3. Determine data range based on current time
+        if now_kst.time() < market_close_time:
+            # Before market close: Use data up to yesterday to predict for today
+            today_str = now_kst.strftime('%Y.%m.%d')
+            data_for_prediction = [d for d in historical_data if d.get('date') != today_str]
+            prediction_type_message = "오늘"
+        else:
+            # After market close: Use data up to today to predict for tomorrow
+            data_for_prediction = historical_data
+            prediction_type_message = "내일"
 
-        # Filter out today's data, ensuring we only use data up to yesterday
-        historical_data_until_yesterday = [d for d in historical_data if d.get('date') != today_str]
+        if not data_for_prediction:
+            raise HTTPException(status_code=404, detail="Not enough historical data to make a prediction.")
 
-        if not historical_data_until_yesterday:
-            raise HTTPException(status_code=404, detail="Not enough historical data available (excluding today).")
+        # 4. Predict the next day's price
+        predicted_price = predict_next_day_price_stacking_hybrid(data_for_prediction)
 
-        # 2. Predict the next day's price using the stacking hybrid model
-        predicted_price = predict_next_day_price_stacking_hybrid(historical_data_until_yesterday)
-
-        # 3. The prediction target is the next business day after the last available data point.
-        last_data_date_str = historical_data_until_yesterday[-1]['date'] # Changed from [0] to [-1]
+        # 5. Determine the target date for the prediction message
+        last_data_date_str = data_for_prediction[-1]['date']
         last_data_date = datetime.datetime.strptime(last_data_date_str, '%Y.%m.%d')
-
-        prediction_target_date = last_data_date + datetime.timedelta(days=1)
-
-        # Find the next business day (handles weekends)
-        while prediction_target_date.weekday() >= 5: # 5: Saturday, 6: Sunday
-            prediction_target_date += datetime.timedelta(days=1)
         
-        # 4. Format the response
+        prediction_target_date = last_data_date + datetime.timedelta(days=1)
+        # Skip weekends to find the next business day
+        while prediction_target_date.weekday() >= 5:  # 5: Saturday, 6: Sunday
+            prediction_target_date += datetime.timedelta(days=1)
+
+        # 6. Format the response
         formatted_date = f"{prediction_target_date.month}월 {prediction_target_date.day}일"
         formatted_price = f"{locale.format_string('%d', int(predicted_price), grouping=True)}원"
 
-        prediction_message = f"{stock_name}({code})의 {formatted_date} 예상 종가는 **{formatted_price}** 입니다. (스태킹 하이브리드 모델)"
+        prediction_message = f"{stock_name}({code})의 {formatted_date}({prediction_type_message}) 예상 종가는 **{formatted_price}** 입니다. (스태킹 하이브리드 모델)"
 
         return {"prediction_message": prediction_message}
 
     except ValueError as e:
-        print(f"DEBUG: ValueError occurred: {e}") # ADDED FOR DEBUGGING
+        print(f"DEBUG: ValueError occurred: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during prediction: {e}")

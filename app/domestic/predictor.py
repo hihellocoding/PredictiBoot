@@ -74,18 +74,26 @@ def predict_next_day_price_stacking_hybrid(historical_data: list) -> float:
     1. LSTM과 XGBoost를 1차 모델로 사용하여 각각 예측을 생성합니다.
     2. 두 모델의 예측 결과를 입력으로 받아, 최종 예측을 생성하는 2차 모델(메타 모델)을 학습시킵니다.
     """
-    if len(historical_data) < 90: # 학습 + 검증을 위해 최소 데이터 요구량 증가
-        raise ValueError("Not enough historical data for Stacking model (requires at least 90 days).")
+    if len(historical_data) < 90:
+        raise ValueError("Not enough historical data for Stacking model (requires at least 90 days initially).")
 
     df = pd.DataFrame(historical_data)
     df['date'] = pd.to_datetime(df['date'])
     df = df.set_index('date').sort_index()
-    df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
-    
-    # 'change' 컬럼 제거 (object 타입으로 인해 XGBoost 오류 발생 방지)
+
+    # --- Defensive data cleaning and type conversion ---
+    numeric_cols = ['closing_price', 'opening_price', 'high_price', 'low_price', 'volume']
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
     if 'change' in df.columns:
         df = df.drop(columns=['change'])
-    df.dropna(inplace=True)
+
+    df.dropna(inplace=True) # Drop rows with any NaN values after coercion
+
+    if len(df) < 90:
+        raise ValueError(f"Not enough valid historical data after cleaning (requires at least 90 days, found {len(df)}).")
+    # --- End of cleaning ---
 
     # --- XGBoost 모델을 위한 피처 및 타겟 생성 ---
     df_features = _create_features(df)

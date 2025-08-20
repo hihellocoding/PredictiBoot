@@ -160,19 +160,42 @@ if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.sessio
                 else:
                     st.warning("해외 주식 뉴스 가져오기는 아직 구현되지 않았습니다.")
 
-                # --- 오늘 주가 차트 데이터 가져오기 (국내 주식만) ---
-                intraday_data_df = pd.DataFrame()
+                # --- 실시간 현재가 및 거래량 표시 (국내 주식만) ---
                 if api_path_base == "domestic":
-                    today_date_str = datetime.datetime.now().strftime("%Y%m%d")
-                    intraday_params = {"code": stock_code, "date": today_date_str}
-                    intraday_response = requests.get(f"{API_BASE_URL}/stocks/{api_path_base}/intraday", params=intraday_params)
-                    intraday_response.raise_for_status()
-                    intraday_raw_data = intraday_response.json().get('intraday_data', [])
-                    
-                    # 분봉 차트 기능은 현재 개발 대기중입니다.
-                    with col1:
-                        st.warning("분봉 차트 기능은 현재 개발 대기중입니다. (데이터 가져오기 문제)")
-                # --- 차트 데이터 가져오기 끝 ---
+                    try:
+                        today_date_str = datetime.datetime.now().strftime("%Y%m%d")
+                        intraday_params = {"code": stock_code, "date": today_date_str}
+                        intraday_response = requests.get(f"{API_BASE_URL}/stocks/{api_path_base}/intraday", params=intraday_params)
+                        
+                        # 404 (데이터 없음) 에러는 장 시간이 아닐 때 정상일 수 있으므로, 성공(200) 케이스만 처리
+                        if intraday_response.status_code == 200:
+                            intraday_raw_data = intraday_response.json().get('intraday_data', [])
+                            
+                            if intraday_raw_data:
+                                # 가장 마지막 데이터가 최신 데이터
+                                latest_data = intraday_raw_data[-1]
+                                current_price = latest_data.get('closing_price', 'N/A')
+                                current_volume = latest_data.get('volume', 'N/A')
+
+                                # col1의 예측 결과 아래에 표시
+                                with col1:
+                                    st.divider()
+                                    st.subheader("⚡ 실시간 정보")
+                                    c1, c2 = st.columns(2)
+                                    c1.metric("현재가", f"{current_price:,} 원" if isinstance(current_price, int) else "N/A")
+                                    c2.metric("현재 거래량", f"{current_volume:,}" if isinstance(current_volume, int) else "N/A")
+                            else:
+                                # 장이 아닐때는 굳이 메시지를 표시하지 않음
+                                pass 
+                        # 404 외 다른 에러가 발생했을 경우 표시
+                        elif intraday_response.status_code != 404:
+                             with col1:
+                                st.warning(f"실시간 정보를 가져오는 중 오류 발생 (상태 코드: {intraday_response.status_code})")
+
+                    except requests.exceptions.RequestException as e:
+                        with col1:
+                            st.error(f"실시간 정보 요청 중 오류: {e}")
+                # --- 실시간 정보 표시 끝 ---
 
             except requests.exceptions.RequestException as e:
                 st.error(f"API 요청 실패: {e}")
@@ -182,36 +205,6 @@ if st.button("분석 시작 🚀", use_container_width=True, disabled=(st.sessio
         with col1:
             st.subheader("📈 자체 예측 결과")
             st.success(prediction_message)
-
-            # --- 분봉 차트 및 현재가 정보 표시 ---
-            if not intraday_data_df.empty:
-                st.subheader("📈 금일 분봉 차트")
-                st.line_chart(intraday_data_df['closing_price'])
-
-                now = datetime.datetime.now().time()
-                market_close_time = datetime.time(15, 30)
-
-                if now < market_close_time:
-                    latest_data = intraday_data_df.iloc[-1]
-                    current_price = latest_data['closing_price']
-                    total_volume = latest_data['cumulative_volume']
-                    data_time = latest_data.name.strftime('%H:%M:%S')
-                    st.metric(label=f"실시간 거래가 ({data_time})", value=f"{current_price:,.0f} 원")
-                    st.metric(label="총 거래량", value=f"{total_volume:,.0f}")
-                else:
-                    closing_data_series = intraday_data_df[intraday_data_df.index <= market_close_time]
-                    if not closing_data_series.empty:
-                        closing_data = closing_data_series.iloc[-1]
-                        closing_price = closing_data['closing_price']
-                        final_volume = closing_data['cumulative_volume']
-                        st.metric(label="15:30 종가", value=f"{closing_price:,.0f} 원")
-                        st.metric(label="최종 거래량", value=f"{final_volume:,.0f}")
-                    else:
-                        st.warning("15:30 이전 데이터가 없습니다.")
-            elif api_path_base == "domestic":
-                st.warning("금일 거래 데이터가 없습니다.")
-            # --- 분봉 차트 끝 ---
-
             st.subheader("📰 관련 최신 뉴스")
             if news_articles:
                 for news_item in news_articles:

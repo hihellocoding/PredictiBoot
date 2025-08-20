@@ -27,54 +27,48 @@ def get_stock_name(code: str) -> str:
     except Exception:
         return "알 수 없는 종목"
 
-def get_daily_stock_data(code: str, page: int = 1):
-    print(f"DEBUG: get_daily_stock_data called for code: {code}, page: {page}")
-    url = f"https://finance.naver.com/item/sise_day.nhn?code={code}&page={page}"
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'}
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        print(f"DEBUG: get_daily_stock_data - Request successful for page {page}.")
-        soup = BeautifulSoup(response.text, 'lxml')
-        table = soup.find('table', class_='type2')
-        if table is None:
-            print(f"DEBUG: get_daily_stock_data - No table found for page {page}.")
-            return None
-        df = pd.read_html(str(table), header=0)[0]
-        df = df.dropna()
-        if df.empty:
-            print(f"DEBUG: get_daily_stock_data - DataFrame is empty after dropna for page {page}.")
-            return None
-        df = df.rename(columns={
-            '날짜': 'date', '종가': 'closing_price', '전일비': 'change',
-            '시가': 'opening_price', '고가': 'high_price', '저가': 'low_price', '거래량': 'volume'
-        })
-        print(f"DEBUG: get_daily_stock_data - Successfully processed page {page}. Rows: {len(df)}")
-        return df.to_dict(orient='records')
-    except requests.exceptions.RequestException as e:
-        print(f"DEBUG: get_daily_stock_data - Request failed for page {page}: {e}")
-        return {"error": f"Request failed: {e}"}
-    except Exception as e:
-        print(f"DEBUG: get_daily_stock_data - An unexpected error occurred for page {page}: {e}")
-        return {"error": f"An unexpected error occurred: {e}"}
-
 def get_historical_data(code: str, years: int = 1):
-    print(f"DEBUG: get_historical_data called for code: {code}, years: {years}")
-    all_data = []
-    pages_to_crawl = years * 26
-    for page in range(1, pages_to_crawl + 1):
-        daily_data = get_daily_stock_data(code, page)
-        if daily_data is None:
-            print(f"DEBUG: get_historical_data - No more data or error for page {page}.")
-            break
-        if isinstance(daily_data, dict) and "error" in daily_data:
-            print(f"DEBUG: get_historical_data - Error in daily data for page {page}: {daily_data["error"]}")
-            return daily_data
-        all_data.extend(daily_data)
-        print(f"DEBUG: get_historical_data - Collected {len(all_data)} total records after page {page}.")
-        time.sleep(0.1)
-    print(f"DEBUG: get_historical_data - Finished crawling. Total records: {len(all_data)}")
-    return all_data
+    """
+    pykrx를 사용하여 특정 종목의 과거 시세 데이터를 가져옵니다.
+    네이버 금융 페이징 방식 대신 날짜 범위 지정 방식으로 변경하여 정확성을 높입니다.
+    """
+    try:
+        today = datetime.datetime.now()
+        start_date = today - datetime.timedelta(days=years * 365)
+        
+        # pykrx는 YYYYMMDD 형식의 날짜를 사용합니다.
+        today_str = today.strftime('%Y%m%d')
+        start_date_str = start_date.strftime('%Y%m%d')
+
+        print(f"DEBUG: Fetching historical data for {code} from {start_date_str} to {today_str} using pykrx.")
+        
+        df = stock.get_market_ohlcv(start_date_str, today_str, code)
+        
+        if df.empty:
+            print(f"DEBUG: No historical data found for {code} in the given range.")
+            return []
+
+        # 데이터프레임을 기존 형식(list of dicts)으로 변환
+        df = df.reset_index() # '날짜' 컬럼을 인덱스에서 컬럼으로 변환
+        df = df.rename(columns={
+            '날짜': 'date', '종가': 'closing_price', '시가': 'opening_price',
+            '고가': 'high_price', '저가': 'low_price', '거래량': 'volume', '등락률': 'change'
+        })
+        # 날짜 형식을 'YYYY.MM.DD'로 변경
+        df['date'] = df['date'].dt.strftime('%Y.%m.%d')
+        
+        # '전일비' 컬럼은 predictor에서 사용하지 않으므로 'change' 컬럼(등락률)을 그대로 둠
+        
+        # 필요한 컬럼만 선택
+        df = df[['date', 'closing_price', 'change', 'opening_price', 'high_price', 'low_price', 'volume']]
+
+        print(f"DEBUG: Successfully fetched {len(df)} records using pykrx.")
+        # 데이터를 역순으로 정렬 (최신 날짜가 위로 오도록)
+        return df.sort_values(by='date', ascending=True).to_dict(orient='records')
+
+    except Exception as e:
+        print(f"DEBUG: An error occurred in get_historical_data with pykrx: {e}")
+        return {"error": f"An unexpected error occurred with pykrx: {e}"}
 
 def get_stock_news(code: str, limit: int = 5):
     """
