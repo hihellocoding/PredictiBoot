@@ -79,7 +79,17 @@ async def predict_domestic_stock(
         # 4. Predict the next day's price
         predicted_price = predict_next_day_price_stacking_hybrid(data_for_prediction)
 
-        # 5. Determine the target date for the prediction message
+        # 5. Get latest closing price for comparison
+        latest_closing_price = float(data_for_prediction[-1]['closing_price'])
+
+        # 6. Calculate percentage change
+        percentage_change_str = ""
+        if latest_closing_price > 0:
+            percentage_change = ((predicted_price / latest_closing_price) - 1) * 100
+            sign = "+" if percentage_change >= 0 else ""
+            percentage_change_str = f" (최신 종가 대비 {sign}{percentage_change:.2f}%)"
+
+        # 7. Determine the target date for the prediction message
         last_data_date_str = data_for_prediction[-1]['date']
         last_data_date = datetime.datetime.strptime(last_data_date_str, '%Y.%m.%d')
         
@@ -88,11 +98,11 @@ async def predict_domestic_stock(
         while prediction_target_date.weekday() >= 5:  # 5: Saturday, 6: Sunday
             prediction_target_date += datetime.timedelta(days=1)
 
-        # 6. Format the response
+        # 8. Format the response
         formatted_date = f"{prediction_target_date.month}월 {prediction_target_date.day}일"
         formatted_price = f"{locale.format_string('%d', int(predicted_price), grouping=True)}원"
 
-        prediction_message = f"{stock_name}({code})의 {formatted_date}({prediction_type_message}) 예상 종가는 **{formatted_price}** 입니다. (스태킹 하이브리드 모델)"
+        prediction_message = f"{stock_name}({code})의 {formatted_date}({prediction_type_message}) 예상 종가는 **{formatted_price}** 입니다.{percentage_change_str} (스태킹 하이브리드 모델)"
 
         return {"prediction_message": prediction_message}
 
